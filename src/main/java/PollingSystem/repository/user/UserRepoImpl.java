@@ -1,7 +1,11 @@
 package PollingSystem.repository.user;
 
-import PollingSystem.mapper.user.UsesMapper;
+import PollingSystem.config.PollTablesConfig;
+import PollingSystem.mapper.user.UserMapper;
 import PollingSystem.model.user.User;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -10,41 +14,39 @@ import java.util.List;
 @Repository
 public class UserRepoImpl implements UserRepo {
 
-    private static final String USERS_TABLE_NAME = "users";
-
+    @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private PollTablesConfig pollTablesConfig;
 
     @Override
     public User getUserById(Integer id) {
-        String sql = "SELECT * FROM " + USERS_TABLE_NAME +
+        String sql = "SELECT * FROM " + pollTablesConfig.getUsers() +
                     " WHERE user_id = ?";
         try {
             return jdbcTemplate.queryForObject(
                     sql,
-                    new UsesMapper(),
+                    new UserMapper(),
                     id
             );
-        } catch (Exception e) {
+        } catch (EmptyResultDataAccessException e) {
             return null;
         }
     }
 
     @Override
     public List<User> getAllUsers() {
-        String sql = "SELECT * FROM " + USERS_TABLE_NAME;
-        try {
-            return jdbcTemplate.query(
-                    sql,
-                    new UsesMapper()
-            );
-        } catch (Exception e) {
-            return null;
-        }
+        String sql = "SELECT * FROM " + pollTablesConfig.getUsers();
+        return jdbcTemplate.query(
+                sql,
+                new UserMapper()
+        );
     }
 
     @Override
     public Integer createUser(User user) throws Exception {
-        String sql = "INSERT INTO " + USERS_TABLE_NAME +
+        String sql = "INSERT INTO " + pollTablesConfig.getUsers() +
                 " (first_name, last_name, email, age, address, joined_date)" +
                 " VALUES (?, ?, ?, ?, ?, ?)";
         try {
@@ -68,7 +70,7 @@ public class UserRepoImpl implements UserRepo {
 
     @Override
     public void updateUser(User user) throws Exception {
-        String sql = "UPDATE " + USERS_TABLE_NAME +
+        String sql = "UPDATE " + pollTablesConfig.getUsers() +
                     " SET first_name = ?, last_name = ?, email = ?, age = ?, address = ?, joined_date = ?" +
                     " WHERE user_id = ?";
         try {
@@ -89,7 +91,7 @@ public class UserRepoImpl implements UserRepo {
 
     @Override
     public void deleteUserById(Integer id) throws Exception {
-        String sql = "DELETE FROM " + USERS_TABLE_NAME +
+        String sql = "DELETE FROM " + pollTablesConfig.getUsers() +
                     " WHERE user_id = ?";
         try {
             jdbcTemplate.update(

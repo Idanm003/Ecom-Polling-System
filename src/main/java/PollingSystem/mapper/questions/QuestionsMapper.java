@@ -12,10 +12,10 @@ public class QuestionsMapper implements RowMapper<Questions> {
         return new Questions(
           rs.getInt("question_id"),
           rs.getString("question_title"),
-          rs.getString("option1"),
-          rs.getString("option2"),
-          rs.getString("option3"),
-          rs.getString("option4")
+          rs.getString("first_option"),
+          rs.getString("second_option"),
+          rs.getString("third_option"),
+          rs.getString("fourth_option")
         );
     }
 }

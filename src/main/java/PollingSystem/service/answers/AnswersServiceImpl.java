@@ -2,12 +2,18 @@ package PollingSystem.service.answers;
 
 import PollingSystem.model.answers.Answers;
 import PollingSystem.model.questions.Questions;
+import PollingSystem.model.user.User;
 import PollingSystem.repository.answers.AnswersRepo;
+import PollingSystem.requests.answers.AnswerRequest;
+import PollingSystem.responses.questions.QuestionResultsResponse;
+import PollingSystem.responses.answers.AnswerDetailsResponse;
+import PollingSystem.responses.answers.UserAnswersResponse;
 import PollingSystem.service.questions.QuestionService;
 import PollingSystem.service.user.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,25 +28,34 @@ public class AnswersServiceImpl implements AnswersService {
     private UserService userService;
 
     @Autowired
-    QuestionService questionService;
+    private QuestionService questionService;
 
-    private Map<String, Integer> countOptions(Questions questions) {
-        Integer questionId = questions.getQuestionId();
+    private QuestionResultsResponse countOptions(Questions question) {
+        Integer questionId = question.getQuestionId();
         Map<String, Integer> optionsCount = new LinkedHashMap<>();
 
-        optionsCount.put(questions.getOption1(), answersRepo.countAnswersByQuestionIdAndOptions(questionId, 1));
-        optionsCount.put(questions.getOption2(), answersRepo.countAnswersByQuestionIdAndOptions(questionId, 2));
-        optionsCount.put(questions.getOption3(), answersRepo.countAnswersByQuestionIdAndOptions(questionId, 3));
-        optionsCount.put(questions.getOption4(), answersRepo.countAnswersByQuestionIdAndOptions(questionId, 4));
+        for (int option = 1; option <= 4; option++) {
+            optionsCount.put(question.getOptionText(option),
+                    answersRepo.countAnswersByQuestionIdAndOptions(
+                            questionId,
+                            option
+                    )
+            );
+        }
 
-        return optionsCount;
+        return new QuestionResultsResponse(
+                questionId,
+                question.getQuestionTitle(),
+                optionsCount,
+                answersRepo.countAllAnswersByQuestionId(questionId)
+        );
     }
 
     @Override
-    public Map<String, Integer> getOptionsCountByQuestionId(Integer questionId) throws Exception {
+    public QuestionResultsResponse getOptionsCountByQuestionId(Integer questionId) throws Exception {
         Questions question = questionService.getQuestionById(questionId);
         if (question == null) {
-            throw new Exception("Question Not Found");
+            throw new Exception("Question with id " + questionId + " not found");
         }
         return countOptions(question);
     }
@@ -48,51 +63,71 @@ public class AnswersServiceImpl implements AnswersService {
     @Override
     public Integer getAnswersCountByQuestionId(Integer questionId) throws Exception {
         if (questionService.getQuestionById(questionId) == null) {
-            throw new Exception("Question Not Found");
+            throw new Exception("Question with id " + questionId + " not found");
         }
-        return answersRepo.countAllQuestionsByUserId(questionId);
+        return answersRepo.countAllAnswersByQuestionId(questionId);
     }
 
     @Override
-    public Integer getAnswersCountByUserId(Integer UserId) throws Exception {
-        if (userService.getUserById(UserId) == null) {
-            throw new Exception("User Not Found");
+    public Integer getAnswersCountByUserId(Integer userId) throws Exception {
+        if (userService.getUserById(userId) == null) {
+            throw new Exception("User with id " + userId + " not found");
         }
-        return answersRepo.countAllAnswersByUserId(UserId);
+        return answersRepo.countAllAnswersByUserId(userId);
     }
 
     @Override
-    public List<Answers> getAllAnswersByUserId(Integer UserId) throws Exception {
-        if (userService.getUserById(UserId) == null) {
-            throw new Exception("User Not Found");
+    public UserAnswersResponse getAllAnswersByUserId(Integer userId) throws Exception {
+        User user = userService.getUserById(userId);
+        if (user == null) {
+            throw new Exception("User with id " + userId + " not found");
         }
-        return answersRepo.getAllAnswersByUserId(UserId);
+        List<AnswerDetailsResponse> userAnswers = new ArrayList<>();
+        for (Answers answer : answersRepo.getAllAnswersByUserId(userId)) {
+            Questions question = questionService.getQuestionById(answer.getQuestionId());
+            userAnswers.add(new AnswerDetailsResponse(
+                    question.getQuestionId(),
+                    question.getQuestionTitle(),
+                    answer.getSelectedOption(),
+                    question.getOptionText(answer.getSelectedOption())
+            ));
+        }
+        return new UserAnswersResponse(user, userAnswers);
     }
 
     @Override
-    public Map<Integer, Map<String, Integer>> getAllOptionsCountForAllQuestions() throws Exception {
-        Map<Integer, Map<String, Integer>> allOptionsCount = new LinkedHashMap<>();
+    public List<QuestionResultsResponse> getAllOptionsCountForAllQuestions() {
+        List<QuestionResultsResponse> allOptionsCount = new ArrayList<>();
         for (Questions question : questionService.getAllQuestions()) {
-            allOptionsCount.put(question.getQuestionId(), countOptions(question));
+            allOptionsCount.add(countOptions(question));
         }
         return allOptionsCount;
     }
 
     @Override
-    public void createAnswer(Answers answers) throws Exception {
+    public void createAnswer(AnswerRequest answerRequest) throws Exception {
+        Answers answers = answerRequest.toAnswers();
+
+        if (answers.getUserId() == null) {
+            throw new Exception("User id is missing");
+        }
         if (userService.getUserById(answers.getUserId()) == null) {
-            throw new Exception("User Not Found");
+            throw new Exception("User with id " + answers.getUserId() + " not found - only registered users can submit answers");
+        }
+        if (answers.getQuestionId() == null) {
+            throw new Exception("Question id is missing");
         }
         if (questionService.getQuestionById(answers.getQuestionId()) == null) {
-            throw new Exception("Question Not Found");
+            throw new Exception("Question with id " + answers.getQuestionId() + " not found");
         }
         if (answers.getSelectedOption() == null
-        || answers.getSelectedOption() < 1
-        || answers.getSelectedOption() > 4) {
-            throw new Exception("Selected Option Not Found Must be between 1 and 4");
+                || answers.getSelectedOption() < 1
+                || answers.getSelectedOption() > 4) {
+            throw new Exception("Selected option must be between 1 and 4");
         }
-        if (answersRepo.getAnswersByUserIdAndQuestionId(answers.getUserId(), answers.getQuestionId()) == null) {
-            throw new Exception("User " + answers.getUserId() + " already answered question " + answers.getQuestionId());
+        if (answersRepo.getAnswersByUserIdAndQuestionId(answers.getUserId(), answers.getQuestionId()) != null) {
+            throw new Exception("User with id " + answers.getUserId() + " already answered question with id " + answers.getQuestionId());
         }
+        answersRepo.createAnswers(answers);
     }
 }

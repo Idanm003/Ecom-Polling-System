@@ -1,15 +1,16 @@
 package PollingSystem.service.answers;
 
-import PollingSystem.model.answers.Answers;
+import PollingSystem.requests.answers.AnswerRequest;
+import PollingSystem.responses.questions.QuestionResultsResponse;
+import PollingSystem.responses.answers.UserAnswersResponse;
 
 import java.util.List;
-import java.util.Map;
 
 public interface AnswersService {
-    Map<String, Integer> getOptionsCountByQuestionId(Integer questionId) throws Exception;
+    QuestionResultsResponse getOptionsCountByQuestionId(Integer questionId) throws Exception;
     Integer getAnswersCountByQuestionId(Integer questionId) throws Exception;
-    Integer getAnswersCountByUserId(Integer UserId) throws Exception;
-    List<Answers> getAllAnswersByUserId(Integer UserId) throws Exception;
-    Map<Integer, Map<String, Integer>> getAllOptionsCountForAllQuestions() throws Exception;
-    void createAnswer(Answers answers) throws Exception;
+    Integer getAnswersCountByUserId(Integer userId) throws Exception;
+    UserAnswersResponse getAllAnswersByUserId(Integer userId) throws Exception;
+    List<QuestionResultsResponse> getAllOptionsCountForAllQuestions();
+    void createAnswer(AnswerRequest answerRequest) throws Exception;
 }
