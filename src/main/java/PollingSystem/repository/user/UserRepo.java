@@ -2,7 +2,6 @@ package PollingSystem.repository.user;
 
 import PollingSystem.model.user.User;
 
-import java.sql.SQLException;
 import java.util.List;
 
 public interface UserRepo {

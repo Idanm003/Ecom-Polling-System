@@ -1,10 +1,8 @@
 package PollingSystem.repository.user;
 
 import PollingSystem.config.PollTablesConfig;
-import PollingSystem.mapper.user.UserMapper;
 import PollingSystem.model.user.User;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;

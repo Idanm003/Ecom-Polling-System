@@ -1,7 +1,8 @@
 package PollingSystem.service.user;
 
+import PollingSystem.exceptions.NotFoundException;
 import PollingSystem.model.user.User;
-import PollingSystem.repository.answers.AnswersRepo;
+import PollingSystem.repository.answer.AnswerRepo;
 import PollingSystem.repository.user.UserRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -16,7 +17,7 @@ public class UserServiceImpl implements UserService {
     private UserRepo userRepo;
 
     @Autowired
-    private AnswersRepo answersRepo;
+    private AnswerRepo answerRepo;
 
     private void validateUser(User user) throws Exception {
         if (user.getFirstName() == null
@@ -35,7 +36,11 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public User getUserById(Integer id) {
-        return userRepo.getUserById(id);
+        User user = userRepo.getUserById(id);
+        if (user == null) {
+            throw new NotFoundException("User with id " + id + " not found");
+        }
+        return user;
     }
 
     @Override
@@ -60,10 +65,7 @@ public class UserServiceImpl implements UserService {
         if (user.getUserId() == null) {
             throw new Exception("User id is missing");
         }
-        User existingUser = userRepo.getUserById(user.getUserId());
-        if (existingUser == null) {
-            throw new Exception("User with id " + user.getUserId() + " not found");
-        }
+        User existingUser = getUserById(user.getUserId());
         validateUser(user);
         if (user.getAddress() == null) {
             user.setAddress(existingUser.getAddress());
@@ -76,10 +78,8 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public void deleteUserById(Integer id) throws Exception {
-        if (userRepo.getUserById(id) == null) {
-            throw new Exception("User with id " + id + " not found");
-        }
-        answersRepo.deleteAllAnswersByUserId(id);
+        getUserById(id); // throws 404 if missing
+        answerRepo.deleteAllAnswersByUserId(id);
         userRepo.deleteUserById(id);
     }
 }

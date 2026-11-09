@@ -1,0 +1,43 @@
+package PollingSystem.model.answer;
+
+public class Answer {
+    private Integer answerId;
+    private Integer userId;
+    private Integer questionId;
+    private Integer selectedOption;
+
+    public Answer(Integer answerId, Integer userId, Integer questionId, Integer selectedOption) {
+        this.answerId = answerId;
+        this.userId = userId;
+        this.questionId = questionId;
+        this.selectedOption = selectedOption;
+    }
+    public Answer() {}
+
+    public Integer getAnswerId() {
+        return this.answerId;
+    }
+    public Integer getUserId() {
+        return this.userId;
+    }
+    public Integer getQuestionId() {
+        return this.questionId;
+    }
+    public Integer getSelectedOption() {
+        return this.selectedOption;
+    }
+
+    public void setAnswerId(Integer answerId) {
+        this.answerId = answerId;
+    }
+
+    public void setUserId(Integer userId) {
+        this.userId = userId;
+    }
+    public void setQuestionId(Integer questionId) {
+        this.questionId = questionId;
+    }
+    public void setSelectedOption(Integer selectedOption) {
+        this.selectedOption = selectedOption;
+    }
+}
