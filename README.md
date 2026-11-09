@@ -90,24 +90,63 @@ If you leave out `joinedDate`, it defaults to today.
 
 ## Error Handling
 
-Error handling is straightforward. The service layer throws an `Exception` with a readable message whenever something is wrong (missing fields, unknown ids, invalid answer options, duplicate email, answer already submitted). Each controller wraps its calls in a try/catch and returns the message as plain text with an `Error: ` prefix, for example:
+Error handling uses a centralized `GlobalExceptionHandler` via Spring's `@RestControllerAdvice` pattern:
 
-- `Error: User with id 99 not found - only registered users can submit answers`
+**Exception Types:**
+1. **`NotFoundException`** (extends RuntimeException)
+   - Thrown when a resource doesn't exist (user, question)
+   - Returns **HTTP 404 NOT_FOUND**
+   - Example: `new NotFoundException("Question with id 5 not found")`
+
+2. **Generic `Exception`**
+   - Thrown for business logic errors (invalid input, validation failures)
+   - Returns **HTTP 400 BAD_REQUEST**
+   - Example: `new Exception("Selected option must be one of: [FIRST, SECOND, THIRD, FOURTH]")`
+
+**Service Layer:**
+Services throw exceptions; controllers propagate them (no try/catch needed):
+```java
+// Service
+if (question == null) {
+    throw new NotFoundException("Question with id " + id + " not found");
+}
+
+// Controller – just calls the service
+@GetMapping("/{questionId}")
+public QuestionResultsResponse getOptionsCount(@PathVariable Integer questionId) {
+    return answerService.getOptionsCountByQuestionId(questionId); // Throws if not found
+}
+```
+
+**Response Format:**
+All errors return plain text with `Error: ` prefix:
+- `Error: User with id 99 not found`
 - `Error: Selected option must be one of: [FIRST, SECOND, THIRD, FOURTH]`
 - `Error: User with id 1 already answered question with id 2`
 
-**Note on validation:** Answer option validation uses the `AnswerOption.isValid()` method, which checks against the enum values. This ensures consistency across the codebase and makes adding new options straightforward (just add to the enum).
+**Why Separate Exception Types?**
+- **404 vs 400** – REST API conventions distinguish "not found" from "bad request"
+- **Semantic clarity** – Code and logs clearly show what went wrong
+- **Client handling** – Clients can respond differently to missing resources vs. invalid input
+- **Future flexibility** – Easy to add different handling (retry logic, logging, alerts) per exception type
 
-The exception to the try/catch pattern is `GET /users/{id}` and `GET /questions/{id}`. The service returns `null` for an unknown id, so the controller checks for that itself and replies with something like `Error: User with id 1 not found`. `GET /users/all`, `GET /questions/all` and `GET /answers/all/options-count` don't catch anything.
+**Answer Option Validation:**
+The `AnswerOption.isValid()` method ensures only valid enum values are accepted, eliminating scattered hard-coded checks and making the codebase maintainable as options are added.
 
 ## Architecture & Design
 
 ### Layered Architecture
-- **Controllers** – HTTP endpoints, request/response handling, basic error catching
-- **Services** – Business logic, validation, enum-driven option handling
+- **Controllers** – HTTP endpoints, request/response handling, propagate exceptions
+- **Services** – Business logic, validation, enum-driven option handling, throw exceptions
 - **Repositories** – Data access layer with JDBC and row mappers
 - **Mappers** – Convert ResultSet rows to model objects
 - **Models** – POJO entities and value objects (Question, Answer, User, etc.)
+- **Global Exception Handler** – Centralized error handling via `@RestControllerAdvice`, maps exceptions to HTTP status codes
+
+### Exception Handling
+- `NotFoundException` (404) – Resource doesn't exist
+- `Exception` (400) – Invalid input or business logic violation
+- Both handled centrally in `GlobalExceptionHandler`, no try/catch needed in controllers
 
 ### Answer Options as an Enum
 The `AnswerOption` enum (`model/answer/AnswerOption.java`) is the single source of truth for valid answer values. This design:
@@ -131,16 +170,32 @@ The tables are defined in `schema.sql` and filled with starter data from `data.s
 ```
 src/main/java/PollingSystem/
 ├── PollingSystemApplication.java
-├── config/                          # PollTablesConfig (table names from application.yaml)
+├── config/
+│   └── PollTablesConfig.java        # Table names from application.yaml
 ├── controller/{user,question,answer}/
+│   ├── UserController.java
+│   ├── QuestionController.java
+│   └── AnswerController.java
 ├── service/{user,question,answer}/
+│   ├── *Service.java (interfaces)
+│   └── *ServiceImpl.java
 ├── repository/{user,question,answer}/
-├── mapper/{user,question,answer}/
+│   ├── *Repo.java (interfaces)
+│   ├── *RepoImpl.java
+│   └── *Mapper.java
 ├── model/{user,question,answer}/
+│   ├── Question.java
+│   ├── Answer.java
+│   ├── User.java
 │   └── answer/AnswerOption.java     # Enum: FIRST(1), SECOND(2), THIRD(3), FOURTH(4)
-├── requests/answer/                 # AnswerRequest
-├── responses/answer/                # UserAnswersResponse, AnswerDetailsResponse
-├── responses/question/              # QuestionResultsResponse
-├── exceptions/                      # GlobalExceptionHandler, NotFoundException
-└── mappers/                         # AnswerMapper, QuestionMapper, UserMapper
+├── exceptions/
+│   ├── NotFoundException.java        # RuntimeException for 404 responses
+│   └── GlobalExceptionHandler.java   # Centralized error handling @RestControllerAdvice
+├── requests/answer/
+│   └── AnswerRequest.java
+├── responses/answer/
+│   ├── UserAnswersResponse.java
+│   └── AnswerDetailsResponse.java
+└── responses/question/
+    └── QuestionResultsResponse.java
 ```
